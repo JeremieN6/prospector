@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  passwordHash String
+  createdAt    DateTime        @default(now())
+  credentials  ApiCredentials?
+  campaigns    Campaign[]
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ApiCredentials {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  googlePlacesKey String?
+  brevoApiKey     String?
+  updatedAt       DateTime @updatedAt
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productName String
+  searchQuery String
+  zones       String[]
+  status      String   @default("pending")
+  brevoListId String?
+  progress    Int      @default(0)
+  jobId       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  leads       Lead[]
+
+  @@index([userId, createdAt])
+}
+
+model Lead {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  nom        String
+  ville      String
+  site       String?
+  email      String
+  telephone  String?
+  status     String
+  selected   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId])
+  @@index([email])
+}

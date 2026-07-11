@@ -1,0 +1,16 @@
+node_modules
+.nuxt
+.output
+.env
+.env.*
+!.env.example
+.prisma
+.DS_Store
+*.log
+coverage
+
+# Fichier temporaire 
+tmp/
+tmp/*
+temp/
+*.tmp
