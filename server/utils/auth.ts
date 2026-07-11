@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { compare, hash } from 'bcryptjs'
+import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 
 const COOKIE_NAME = 'prospector_session'
@@ -10,11 +10,11 @@ function sha256(value: string) {
 }
 
 export async function hashPassword(password: string) {
-  return hash(password, 12)
+  return bcrypt.hash(password, 12)
 }
 
 export async function verifyPassword(password: string, passwordHash: string) {
-  return compare(password, passwordHash)
+  return bcrypt.compare(password, passwordHash)
 }
 
 export async function createSession(event: H3Event, userId: string) {
