@@ -22,9 +22,10 @@
 
 ### Ce qui est fait :
 - [x] Configuration MCP memoire
+- [x] Correctif prod auth: chargement env runtime Prisma + db push au deploy
 
 ### Prochaines etapes :
-- [ ] ...
+- [ ] Verifier les logs PM2 apres le prochain deploiement
 
 ---
 
@@ -41,6 +42,8 @@
 
 ## Notes de Session
 > Ajouter ici un resume a la fin de chaque session de travail.
+
+- 2026-07-12 : Correction du 500 sur /api/auth/me en ajoutant un chargement defensif de .env.local/.env avant l'init Prisma et en appliquant `prisma db push` dans le workflow de deploiement.
 
 ---
 
