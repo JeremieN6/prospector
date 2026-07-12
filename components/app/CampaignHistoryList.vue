@@ -30,7 +30,7 @@ defineProps<{
           </div>
         </div>
         <div class="mt-3">
-          <NuxtLink :to="`/app/campaign/${campaign.id}`" class="btn-secondary !px-3 !py-2 text-sm">Ouvrir la campagne</NuxtLink>
+          <NuxtLink :to="`/app/campaign/${campaign.id}`" class="btn-secondary !px-3 !py-2 text-sm">Générer des leads</NuxtLink>
         </div>
       </article>
 

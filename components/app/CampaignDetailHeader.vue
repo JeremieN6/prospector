@@ -27,7 +27,7 @@ const emit = defineEmits<{
 
     <div class="flex flex-wrap gap-3">
       <button class="btn-primary" :disabled="campaign.status === 'running'" @click="emit('run')">
-        {{ campaign.status === 'running' ? 'Scraping en cours...' : 'Lancer le scraping' }}
+        {{ campaign.status === 'running' ? 'Script en cours...' : 'Générer des leads' }}
       </button>
       <button class="btn-secondary" @click="emit('export')">Exporter CSV</button>
       <button class="btn-secondary" @click="emit('brevo')" :disabled="pushingToBrevo">{{ pushingToBrevo ? 'Envoi...' : 'Créer une liste Brevo' }}</button>

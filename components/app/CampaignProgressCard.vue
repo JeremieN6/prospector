@@ -12,7 +12,7 @@ defineProps<{
       <p class="text-sm" style="color: var(--muted)">{{ progress }}%</p>
     </div>
     <div class="h-3 w-full overflow-hidden rounded-full" style="background: #e8e9e2">
-      <div class="h-full rounded-full transition-all" :style="`width:${progress}%; background: var(--accent)`" />
+      <div class="h-full rounded-full transition-all duration-700 ease-out" :style="`width:${progress}%; background: var(--accent)`" />
     </div>
   </div>
 </template>

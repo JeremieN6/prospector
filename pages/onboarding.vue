@@ -30,21 +30,21 @@ async function saveKeys() {
   <section class="mx-auto max-w-3xl px-6 py-16">
     <div class="card p-8">
       <h1 class="text-3xl font-bold">Onboarding des clés API</h1>
-      <p class="mt-2" style="color: var(--muted)">Étape obligatoire avant le dashboard.</p>
+      <p class="mt-2" style="color: var(--muted)">Étape obligatoire avant le dashboard, puis tu pourras lancer le script pour générer des leads.</p>
 
       <form class="mt-8 space-y-6" @submit.prevent="saveKeys">
         <div class="space-y-3">
-          <label class="block text-sm font-semibold">Clé Google Places API</label>
+          <label class="block text-sm font-semibold">Clé Google Places API (New)</label>
           <input v-model="googlePlacesKey" type="password" class="input" required />
           <details class="rounded-xl border p-4" style="border-color: var(--border)">
-            <summary class="cursor-pointer font-semibold">Mini guide Google Places</summary>
+            <summary class="cursor-pointer font-semibold">Mini guide Google Places (New)</summary>
             <ol class="mt-3 list-inside list-decimal space-y-1 text-sm" style="color: var(--muted)">
-              <li>Aller sur console.cloud.google.com</li>
-              <li>Créer ou sélectionner un projet</li>
-              <li>Activer Places API</li>
-              <li>Créer des identifiants puis une clé API</li>
-              <li>Copier la clé ici</li>
-              <li>Optionnel: restreindre la clé à Places API</li>
+              <li>Ouvre Google Cloud Console</li>
+              <li>Sélectionne ou crée ton projet</li>
+              <li>Active Places API (New) dans Google Maps Platform</li>
+              <li>Crée des identifiants puis une clé API</li>
+              <li>Copie la clé ici</li>
+              <li>Optionnel: restreins-la à Places API (New) et à tes usages autorisés</li>
             </ol>
           </details>
         </div>
@@ -67,7 +67,7 @@ async function saveKeys() {
         <p v-if="error" class="text-sm" style="color: var(--danger)">{{ error }}</p>
 
         <button class="btn-primary" :disabled="loading">
-          {{ loading ? 'Sauvegarde...' : 'Continuer vers le dashboard' }}
+          {{ loading ? 'Sauvegarde...' : 'Passer à la génération de leads' }}
         </button>
       </form>
     </div>

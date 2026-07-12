@@ -17,7 +17,7 @@
 
 ## Etat Actuel du Projet
 **Phase** : Demarrage
-**Derniere session** : -
+**Derniere session** : 2026-07-12
 **Progression globale** : 0%
 
 ### Ce qui est fait :
@@ -44,6 +44,7 @@
 > Ajouter ici un resume a la fin de chaque session de travail.
 
 - 2026-07-12 : Correction du 500 sur /api/auth/me en ajoutant un chargement defensif de .env.local/.env avant l'init Prisma et en appliquant `prisma db push` dans le workflow de deploiement.
+- 2026-07-12 : Refonte du hero/landing et du dashboard pour exposer clairement le lancement du script de scraping, avec guide Google Places (New), CTA "Générer des leads" et animations de révélation au scroll.
 
 ---
 
