@@ -15,8 +15,8 @@ const { target, isVisible } = useScrollReveal<HTMLElement>()
         <p class="mt-2" style="color: var(--muted)">Business, catégorie Google Places (New), localisation cible: le pipeline transforme ça en liste de leads enrichis.</p>
       </article>
       <article class="card p-6">
-        <h3 class="text-xl font-semibold">Clés API chiffrées en base</h3>
-        <p class="mt-2" style="color: var(--muted)">Les clés restent protégées, et tu peux lancer le script ensuite sans remettre la configuration à zéro.</p>
+        <h3 class="text-xl font-semibold">Une liste Brevo prête, pas juste un fichier</h3>
+        <p class="mt-2" style="color: var(--muted)">Plus besoin d'exporter, ouvrir Brevo, créer une liste à la main, importer le CSV. Le script pousse directement tes leads validés dans une liste nommée et prête pour ta séquence.</p>
       </article>
     </div>
   </section>
