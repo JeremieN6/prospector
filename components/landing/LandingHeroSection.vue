@@ -47,7 +47,7 @@ onMounted(() => {
         sans perdre le contrôle.
       </h1>
       <p class="max-w-xl text-lg" style="color: var(--muted)">
-        Prospector automatise la recherche Google Places (New), lance le script de scraping, vérifie les emails et prépare tes vagues Brevo par business.
+        Prospector automatise la recherche Google Places (New), lance le script de scraping, vérifie les emails et prépare les vagues Brevo par business.
         Tu gardes la main sur la validation avant export et envoi.
       </p>
       <div class="flex flex-wrap gap-3">

@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { Worker } from 'bullmq'
 import IORedis from 'ioredis'
@@ -10,8 +10,19 @@ import { getCampaignQueueName } from '../server/utils/queue'
 // Charger .env.local puis .env si présents (worker standalone, pas de Nuxt dotenv)
 for (const envFile of ['.env.local', '.env']) {
   const envPath = resolve(process.cwd(), envFile)
-  if (existsSync(envPath)) {
-    process.loadEnvFile(envPath)
+  if (!existsSync(envPath)) continue
+  try {
+    for (const line of readFileSync(envPath, 'utf8').split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eqIdx = trimmed.indexOf('=')
+      if (eqIdx < 0) continue
+      const key = trimmed.slice(0, eqIdx).trim()
+      const value = trimmed.slice(eqIdx + 1).replace(/^["'](.*)["']$/, '$1')
+      if (key && !(key in process.env)) process.env[key] = value
+    }
+  } catch {
+    // ignorer les erreurs de parsing .env
   }
 }
 
