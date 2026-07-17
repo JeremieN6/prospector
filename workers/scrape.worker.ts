@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { Worker } from 'bullmq'
 import IORedis from 'ioredis'
 import { PrismaClient } from '@prisma/client'
@@ -5,11 +7,19 @@ import { createHash, createDecipheriv } from 'node:crypto'
 import { scrapeCampaign } from '../server/utils/scraper'
 import { getCampaignQueueName } from '../server/utils/queue'
 
+// Charger .env.local puis .env si présents (worker standalone, pas de Nuxt dotenv)
+for (const envFile of ['.env.local', '.env']) {
+  const envPath = resolve(process.cwd(), envFile)
+  if (existsSync(envPath)) {
+    process.loadEnvFile(envPath)
+  }
+}
+
 const prisma = new PrismaClient()
 const redisUrl = process.env.REDIS_URL
 
 if (!redisUrl) {
-  throw new Error('REDIS_URL manquant pour le worker')
+  throw new Error('REDIS_URL manquant pour le worker — vérifier .env.local')
 }
 
 function decryptText(payload: string) {
@@ -32,7 +42,16 @@ type JobData = {
 
 const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
-  enableReadyCheck: false
+  enableReadyCheck: false,
+  tls: { rejectUnauthorized: false },
+  retryStrategy: (times) => {
+    if (times > 8) return null
+    return Math.min(times * 500, 5000)
+  },
+  reconnectOnError: (err) => {
+    const msg = String(err?.message || '').toUpperCase()
+    return msg.includes('ECONNRESET') || msg.includes('ETIMEDOUT') || msg.includes('ECONNREFUSED')
+  },
 })
 
 new Worker<JobData>(
