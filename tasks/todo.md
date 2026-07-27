@@ -10,3 +10,5 @@
 
 ## Fait
 - [x] Initialisation MCP memoire + structure projet
+- [x] Rendre la génération de leads réellement exécutable depuis le bouton + paramètres configurables (SaaS, catégorie, type, zones, volume)
+- [x] Ajouter un écran de duplication de campagne et un export CSV au format d'import externe

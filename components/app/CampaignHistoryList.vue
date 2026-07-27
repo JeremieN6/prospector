@@ -3,6 +3,9 @@ type Campaign = {
   id: string
   productName: string
   searchQuery: string
+  placeType: string | null
+  searchVariantsText?: string | null
+  targetLeads: number
   zones: string[]
   status: string
   _count?: { leads: number }
@@ -22,7 +25,10 @@ defineProps<{
           <div>
             <p class="font-semibold">{{ campaign.productName }}</p>
             <p class="text-sm" style="color: var(--muted)">{{ campaign.searchQuery }}</p>
+            <p v-if="campaign.placeType" class="text-sm" style="color: var(--muted)">Type: {{ campaign.placeType }}</p>
+            <p v-if="campaign.searchVariantsText" class="text-sm" style="color: var(--muted)">Variantes: {{ campaign.searchVariantsText.split('\n').filter(Boolean).length }}</p>
             <p class="text-sm" style="color: var(--muted)">Zones: {{ campaign.zones.join(', ') }}</p>
+            <p class="text-sm" style="color: var(--muted)">Objectif: {{ campaign.targetLeads }} leads</p>
           </div>
           <div class="text-right">
             <p class="text-sm font-semibold uppercase" style="color: var(--accent)">{{ campaign.status }}</p>

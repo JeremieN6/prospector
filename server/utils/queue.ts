@@ -17,13 +17,26 @@ function redisConnection() {
   })
 }
 
-export function getCampaignQueue() {
+export function getCampaignQueueIfConfigured() {
+  const config = useRuntimeConfig()
+  if (!config.redisUrl) {
+    return null
+  }
+
   if (!queueInstance) {
     queueInstance = new Queue(queueName, {
       connection: redisConnection()
     })
   }
   return queueInstance
+}
+
+export function getCampaignQueue() {
+  const queue = getCampaignQueueIfConfigured()
+  if (!queue) {
+    throw createError({ statusCode: 500, statusMessage: 'REDIS_URL manquant' })
+  }
+  return queue
 }
 
 export function getCampaignQueueName() {

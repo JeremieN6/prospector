@@ -1,6 +1,17 @@
 <script setup lang="ts">
+const DEFAULT_SEARCH_VARIANTS_TEXT = [
+  'institut de beauté|beauty_salon',
+  'spa|spa',
+  'centre esthétique|beauty_salon',
+  'soin visage|beauty_salon',
+  'médecine esthétique|beauty_salon'
+].join('\n')
+
 const productName = ref('')
 const searchQuery = ref('')
+const placeType = ref('beauty_salon')
+const searchVariantsText = ref(DEFAULT_SEARCH_VARIANTS_TEXT)
+const targetLeads = ref(100)
 const zonesText = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -16,11 +27,19 @@ async function createCampaign() {
       body: {
         productName: productName.value,
         searchQuery: searchQuery.value,
+        placeType: placeType.value.trim() || undefined,
+        searchVariantsText: searchVariantsText.value.trim() || undefined,
+        targetLeads: targetLeads.value,
         zones: zonesText.value.split(',').map((zone) => zone.trim()).filter(Boolean)
       }
     })
 
     productName.value = ''
+    searchQuery.value = ''
+    placeType.value = 'beauty_salon'
+    searchVariantsText.value = DEFAULT_SEARCH_VARIANTS_TEXT
+    targetLeads.value = 100
+    zonesText.value = ''
     await refresh()
   } catch (e: any) {
     error.value = e?.data?.message || e?.message || 'Erreur'
@@ -38,11 +57,17 @@ const campaignForm = computed({
   get: () => ({
     productName: productName.value,
     searchQuery: searchQuery.value,
+    placeType: placeType.value,
+    searchVariantsText: searchVariantsText.value,
+    targetLeads: targetLeads.value,
     zonesText: zonesText.value
   }),
   set: (value) => {
     productName.value = value.productName
     searchQuery.value = value.searchQuery
+    placeType.value = value.placeType
+    searchVariantsText.value = value.searchVariantsText
+    targetLeads.value = value.targetLeads
     zonesText.value = value.zonesText
   }
 })

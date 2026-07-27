@@ -43,7 +43,10 @@ model Campaign {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   productName String
   searchQuery String
+  placeType   String?
+  searchVariantsText String?
   zones       String[]
+  targetLeads Int      @default(100)
   status      String   @default("pending")
   brevoListId String?
   progress    Int      @default(0)

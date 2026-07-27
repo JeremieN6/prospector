@@ -28,5 +28,8 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Content-Type', 'text/csv; charset=utf-8')
   setHeader(event, 'Content-Disposition', `attachment; filename="${fileName}"`)
 
-  return leadsToCsv(campaign.leads)
+  return leadsToCsv(campaign.leads, {
+    searchQuery: campaign.searchQuery,
+    placeType: campaign.placeType
+  })
 })

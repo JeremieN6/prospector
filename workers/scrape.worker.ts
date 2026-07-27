@@ -4,7 +4,7 @@ import { Worker } from 'bullmq'
 import IORedis from 'ioredis'
 import { PrismaClient } from '@prisma/client'
 import { createHash, createDecipheriv } from 'node:crypto'
-import { scrapeCampaign } from '../server/utils/scraper'
+import { parseSearchVariantsText, scrapeCampaign } from '../server/utils/scraper'
 import { getCampaignQueueName } from '../server/utils/queue'
 
 // Charger .env.local puis .env si présents (worker standalone, pas de Nuxt dotenv)
@@ -104,8 +104,10 @@ new Worker<JobData>(
     const leads = await scrapeCampaign({
       googlePlacesKey,
       searchQuery: campaign.searchQuery,
+      placeType: campaign.placeType,
+      searchVariants: parseSearchVariantsText(campaign.searchVariantsText),
       zones: campaign.zones,
-      targetLeads: 100,
+      targetLeads: campaign.targetLeads,
       existingEmails: existing,
       onProgress: async (current, target) => {
         const progress = Math.min(100, Math.round((current / target) * 100))

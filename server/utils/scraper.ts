@@ -38,13 +38,55 @@ export type ScrapedLead = {
   status: 'valid' | 'blacklisted' | 'duplicate'
 }
 
+export type SearchVariant = {
+  textQuery: string
+  includedType?: string | null
+}
+
 type ScrapeInput = {
   googlePlacesKey: string
   searchQuery: string
+  placeType?: string | null
+  searchVariants?: SearchVariant[]
   zones: string[]
   targetLeads: number
   existingEmails?: Set<string>
   onProgress?: (current: number, target: number, city: string) => Promise<void> | void
+}
+
+export function parseSearchVariantsText(searchVariantsText: string | null | undefined) {
+  if (!searchVariantsText) {
+    return [] as SearchVariant[]
+  }
+
+  return searchVariantsText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [textQueryPart, includedTypePart] = line.split('|')
+      const textQuery = textQueryPart?.trim() || ''
+      const includedType = includedTypePart?.trim() || null
+      if (!textQuery) {
+        return null
+      }
+      return {
+        textQuery,
+        includedType
+      }
+    })
+    .filter((variant): variant is SearchVariant => Boolean(variant))
+}
+
+function resolveSearchVariants(input: Pick<ScrapeInput, 'searchQuery' | 'placeType' | 'searchVariants'>) {
+  if (input.searchVariants?.length) {
+    return input.searchVariants
+  }
+
+  return [{
+    textQuery: input.searchQuery,
+    includedType: input.placeType || null
+  }]
 }
 
 function normalizeEmail(value: string) {
@@ -135,11 +177,25 @@ async function extractEmail(website: string) {
   return null
 }
 
-async function searchPlaces(googlePlacesKey: string, searchQuery: string, city: string) {
+async function searchPlaces(googlePlacesKey: string, city: string, variant: SearchVariant) {
   const results: Array<any> = []
   let pageToken: string | null = null
 
   do {
+    const payload: Record<string, unknown> = {
+      textQuery: `${variant.textQuery} ${city}`,
+      pageSize: 20,
+      pageToken,
+      languageCode: 'fr',
+      regionCode: 'FR',
+      strictTypeFiltering: false,
+      includePureServiceAreaBusinesses: false
+    }
+
+    if (variant.includedType && variant.includedType.trim()) {
+      payload.includedType = variant.includedType.trim()
+    }
+
     const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
       headers: {
@@ -147,16 +203,7 @@ async function searchPlaces(googlePlacesKey: string, searchQuery: string, city: 
         'X-Goog-Api-Key': googlePlacesKey,
         'X-Goog-FieldMask': 'places.id,places.displayName,places.websiteUri,places.nationalPhoneNumber,nextPageToken'
       },
-      body: JSON.stringify({
-        textQuery: `${searchQuery} ${city}`,
-        pageSize: 20,
-        pageToken,
-        languageCode: 'fr',
-        regionCode: 'FR',
-        includedType: 'beauty_salon',
-        strictTypeFiltering: false,
-        includePureServiceAreaBusinesses: false
-      })
+      body: JSON.stringify(payload)
     })
 
     if (!response.ok) {
@@ -178,52 +225,52 @@ async function searchPlaces(googlePlacesKey: string, searchQuery: string, city: 
 }
 
 export async function scrapeCampaign(input: ScrapeInput) {
-  const { googlePlacesKey, searchQuery, zones, targetLeads, onProgress } = input
+  const { googlePlacesKey, zones, targetLeads, onProgress } = input
   const existingEmails = input.existingEmails || new Set<string>()
+  const searchVariants = resolveSearchVariants(input)
 
-  const leadsByDomain = new Map<string, ScrapedLead>()
-  const leadsByEmail = new Set<string>()
+  const leadsByEmail = new Map<string, ScrapedLead>()
   const seenPlaceIds = new Set<string>()
 
   for (const city of zones) {
-    if (leadsByDomain.size >= targetLeads) break
+    if (leadsByEmail.size >= targetLeads) break
 
-    const places = await searchPlaces(googlePlacesKey, searchQuery, city)
-    for (const place of places) {
-      if (leadsByDomain.size >= targetLeads) break
-      if (!place.id || seenPlaceIds.has(place.id)) continue
-      seenPlaceIds.add(place.id)
+    for (const variant of searchVariants) {
+      if (leadsByEmail.size >= targetLeads) break
 
-      const website = place.websiteUri || null
-      if (!website) continue
+      const places = await searchPlaces(googlePlacesKey, city, variant)
+      for (const place of places) {
+        if (leadsByEmail.size >= targetLeads) break
+        if (!place.id || seenPlaceIds.has(place.id)) continue
+        seenPlaceIds.add(place.id)
 
-      const email = await extractEmail(website)
-      if (!email) continue
-      if (isBlockedEmail(email) || isGenericEmail(email)) continue
-      if (!(await hasMxRecord(email))) continue
+        const website = place.websiteUri || null
+        if (!website) continue
 
-      const domain = extractDomainFromWebsite(website) || email.split('@')[1]
-      if (!domain) continue
-      if (leadsByDomain.has(domain)) continue
-      if (existingEmails.has(email) || leadsByEmail.has(email)) continue
+        const email = await extractEmail(website)
+        if (!email) continue
+        if (isBlockedEmail(email) || isGenericEmail(email)) continue
+        if (!(await hasMxRecord(email))) continue
 
-      leadsByEmail.add(email)
-      leadsByDomain.set(domain, {
-        nom: place.displayName?.text || '',
-        ville: city,
-        site: website,
-        email,
-        telephone: place.nationalPhoneNumber || null,
-        status: 'valid'
-      })
+        if (existingEmails.has(email) || leadsByEmail.has(email)) continue
 
-      if (onProgress) {
-        await onProgress(leadsByDomain.size, targetLeads, city)
+        leadsByEmail.set(email, {
+          nom: place.displayName?.text || '',
+          ville: city,
+          site: website,
+          email,
+          telephone: place.nationalPhoneNumber || null,
+          status: 'valid'
+        })
+
+        if (onProgress) {
+          await onProgress(leadsByEmail.size, targetLeads, city)
+        }
+
+        await delay(900)
       }
-
-      await delay(900)
     }
   }
 
-  return [...leadsByDomain.values()]
+  return [...leadsByEmail.values()]
 }

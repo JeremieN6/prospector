@@ -3,6 +3,8 @@ const route = useRoute()
 const id = route.params.id as string
 const pushingToBrevo = ref(false)
 const brevoError = ref('')
+const runError = ref('')
+const launching = ref(false)
 let source: EventSource | null = null
 
 const { data: campaign, refresh } = await useAsyncData(`campaign-${id}`, () => $fetch(`/api/campaigns/${id}`))
@@ -46,12 +48,20 @@ onMounted(() => {
 onBeforeUnmount(() => stopProgressStream())
 
 async function runScraping() {
-  await $fetch(`/api/campaigns/${id}/run`, { method: 'POST' })
-  if (campaign.value) {
-    campaign.value.status = 'running'
-    campaign.value.progress = 0
+  runError.value = ''
+  launching.value = true
+  try {
+    await $fetch(`/api/campaigns/${id}/run`, { method: 'POST' })
+    if (campaign.value) {
+      campaign.value.status = 'running'
+      campaign.value.progress = 0
+    }
+    startProgressStream()
+  } catch (e: any) {
+    runError.value = e?.data?.message || e?.message || 'Impossible de lancer le script'
+  } finally {
+    launching.value = false
   }
-  startProgressStream()
 }
 
 async function toggleLead(leadId: string, selected: boolean) {
@@ -90,8 +100,9 @@ async function createBrevoList() {
 
 <template>
   <section class="mx-auto max-w-7xl space-y-6 px-6 py-10" v-if="campaign">
-    <CampaignDetailHeader :campaign="campaign" :pushing-to-brevo="pushingToBrevo" @run="runScraping" @export="exportCsv" @brevo="createBrevoList" />
+    <CampaignDetailHeader :campaign="campaign" :pushing-to-brevo="pushingToBrevo" :launching="launching" @run="runScraping" @export="exportCsv" @brevo="createBrevoList" />
 
+    <p v-if="runError" class="text-sm" style="color: var(--danger)">{{ runError }}</p>
     <p v-if="brevoError" class="text-sm" style="color: var(--danger)">{{ brevoError }}</p>
 
     <CampaignProgressCard :status="campaign.status" :progress="campaign.progress" />

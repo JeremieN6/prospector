@@ -17,6 +17,12 @@
 
 ## Lecons
 
+### 2026-07-27 CSV export Neon et duplication campagne
+**Probleme** : Le CSV exporté ne correspondait pas au format d'import attendu et aucune vraie édition/duplication de campagne n'était disponible.
+**Cause racine** : Le helper CSV utilisait des colonnes internes, la migration de schéma n'avait pas été fournie en SQL brut, et le flux UI ne proposait qu'une création simple.
+**Solution** : Passer l'export sur les colonnes CONTACT ID / EMAIL / NOM_ENSEIGNE / LASTNAME / SMS / LANDLINE_NUMBER / WHATSAPP / INTERESTS, créer un écran de duplication pré-rempli, et fournir le SQL Neon manuel.
+**Regle** : Quand le format cible est imposé par un import externe, l'export doit être aligné explicitement sur ce schéma et la migration doit exister en SQL réutilisable hors Prisma.
+
 ### 2026-07-13 FAQ orientee usage reel
 **Probleme** : La FAQ landing contenait une question prematuree (multi-utilisateur) et un rendu visuel confus sur une question dupliquée/superposée.
 **Cause racine** : Les items FAQ n etaient pas revus selon le contexte produit actuel (outil interne MVP) et le style natif `summary` n etait pas explicitement normalise.
