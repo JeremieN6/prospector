@@ -8,6 +8,7 @@ const BLOCKED_EMAILS = new Set([
   'your@email.com',
   'utilisateur@domaine.com',
   'nom@gmail.com',
+  'exemple@mail.com',
   'exemple@gmail.com',
   'you@example.com',
   'press@google.com',
@@ -25,9 +26,20 @@ const BLOCKED_EMAIL_DOMAINS = new Set([
   'email.com',
   'google.com',
   'sumup.com',
+  'mail.fr',
+  'exemple.com',
   'facebook.com',
   'instagram.com'
 ])
+
+const BLOCKED_NAME_PATTERNS = [
+  /coiffeur/i,
+  /coiffure/i,
+  /club libertin/i,
+  /sauna club/i,
+  /centre aquatique/i,
+  /piscine municipale/i
+]
 
 export type ScrapedLead = {
   nom: string
@@ -127,6 +139,11 @@ function isGenericEmail(email: string) {
   return /^(noreply|no-reply|donotreply|contact|hello|admin|info|webmaster|support)@/i.test(email)
 }
 
+function isBlockedPlaceName(name: string | null | undefined) {
+  if (!name) return false
+  return BLOCKED_NAME_PATTERNS.some((pattern) => pattern.test(name))
+}
+
 function extractDomainFromWebsite(website: string | null) {
   if (!website) return null
   try {
@@ -201,7 +218,7 @@ async function searchPlaces(googlePlacesKey: string, city: string, variant: Sear
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googlePlacesKey,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.websiteUri,places.nationalPhoneNumber,nextPageToken'
+        'X-Goog-FieldMask': 'places.id,places.name,places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,nextPageToken'
       },
       body: JSON.stringify(payload)
     })
@@ -243,6 +260,9 @@ export async function scrapeCampaign(input: ScrapeInput) {
         if (leadsByEmail.size >= targetLeads) break
         if (!place.id || seenPlaceIds.has(place.id)) continue
         seenPlaceIds.add(place.id)
+
+        const placeName = place.displayName?.text || place.name || ''
+        if (isBlockedPlaceName(placeName)) continue
 
         const website = place.websiteUri || null
         if (!website) continue

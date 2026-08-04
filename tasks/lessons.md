@@ -17,6 +17,12 @@
 
 ## Lecons
 
+### 2026-08-04 Synchronisation du script source
+**Probleme** : Le moteur de scraping serveur avait dérivé de la version source mise à jour.
+**Cause racine** : Les filtres d'exclusion et le payload Places n'avaient pas été reportés dans le code partagé.
+**Solution** : Reprendre les nouveaux filtres de noms bloqués et harmoniser la requête Places dans `server/utils/scraper.ts`.
+**Regle** : Quand le script source évolue, répercuter immédiatement ses règles métier dans le moteur partagé avant de modifier seulement la couche UI.
+
 ### 2026-07-27 CSV export Neon et duplication campagne
 **Probleme** : Le CSV exporté ne correspondait pas au format d'import attendu et aucune vraie édition/duplication de campagne n'était disponible.
 **Cause racine** : Le helper CSV utilisait des colonnes internes, la migration de schéma n'avait pas été fournie en SQL brut, et le flux UI ne proposait qu'une création simple.

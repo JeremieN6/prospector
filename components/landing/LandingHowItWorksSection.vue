@@ -14,7 +14,7 @@ const { target, isVisible } = useScrollReveal<HTMLElement>()
       <article class="card p-6">
         <p class="text-sm font-semibold" style="color: var(--accent)">02</p>
         <h3 class="mt-2 text-xl font-semibold">Prépare la cible</h3>
-        <p class="mt-2" style="color: var(--muted)">Quell Saas, quelle catégorie professionnelle est ciblée, quelle est la localisation cible, et enfin quel est le nombre de leads souhaiité.</p>
+        <p class="mt-2" style="color: var(--muted)">Quel Saas, quelle catégorie professionnelle est ciblée, quelle est la localisation cible, et enfin quel est le nombre de leads souhaiité.</p>
       </article>
       <article class="card p-6">
         <p class="text-sm font-semibold" style="color: var(--accent)">03</p>

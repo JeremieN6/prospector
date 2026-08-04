@@ -17,7 +17,7 @@
 
 ## Etat Actuel du Projet
 **Phase** : Demarrage
-**Derniere session** : 2026-07-27
+**Derniere session** : 2026-08-04
 **Progression globale** : 0%
 
 ### Ce qui est fait :
@@ -46,6 +46,7 @@
 - 2026-07-12 : Correction du 500 sur /api/auth/me en ajoutant un chargement defensif de .env.local/.env avant l'init Prisma et en appliquant `prisma db push` dans le workflow de deploiement.
 - 2026-07-12 : Refonte du hero/landing et du dashboard pour exposer clairement le lancement du script de scraping, avec guide Google Places (New), CTA "Générer des leads" et animations de révélation au scroll.
 - 2026-07-27 : Ajout d'un vrai flux de génération configurable (business, catégorie, type Google Places, zones, volume), écran de duplication de campagne, fallback d'exécution sans Redis, et export CSV aligné sur le format d'import attendu.
+- 2026-08-04 : Synchronisation du moteur de scraping serveur avec la nouvelle version du script source, en reprenant les filtres de noms bloqués et le payload Google Places mis à jour.
 
 ---
 
