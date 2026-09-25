@@ -17,6 +17,12 @@
 
 ## Lecons
 
+### 2026-09-25 Worker BullMQ sans listener 'error' -> log de 27 Go en 3 jours
+**Probleme** : `prospector-worker-error.log` a grossi de ~4-9 Go/jour jusqu'a 27 Go, saturant le disque du VPS (96%).
+**Cause racine** : Le `Worker` BullMQ dans `workers/scrape.worker.ts` n'avait pas de listener `.on('error', ...)`. Quand le quota Redis (Upstash) a ete depasse, BullMQ a emis une erreur applicative (non liee a la connexion) sans aucun delai dans sa boucle interne de recuperation de jobs (`retryIfFailed`, cf. `node_modules/bullmq/dist/cjs/classes/worker.js`), produisant un rejet de promesse non gere a chaque iteration, imprime en clair par Node sur stderr en boucle serree.
+**Solution** : Ajouter un listener `'error'` avec logs structures et rate-limites (1 resume/30s, jamais l'objet erreur complet), plus un circuit breaker (pause du worker + resume automatique avec backoff exponentiel + jitter) declenche apres N erreurs consecutives. Installer `pm2-logrotate` (max_size, retain, compress) en filet de securite global.
+**Regle** : Tout `Worker`/`Queue` BullMQ doit avoir un listener `'error'` explicite avant mise en prod -- sans lui, une erreur Redis applicative persistante (quota, misconfiguration) devient une boucle de log illimitee plutot qu'un signal exploitable. Ajouter systematiquement un garde-fou (pause/backoff) quand une ressource externe (Redis, API tierce) peut echouer de maniere soutenue.
+
 ### 2026-08-04 Synchronisation du script source
 **Probleme** : Le moteur de scraping serveur avait dérivé de la version source mise à jour.
 **Cause racine** : Les filtres d'exclusion et le payload Places n'avaient pas été reportés dans le code partagé.
