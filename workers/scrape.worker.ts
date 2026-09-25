@@ -65,7 +65,31 @@ const connection = new IORedis(redisUrl, {
   },
 })
 
-new Worker<JobData>(
+// Circuit breaker pour les erreurs Redis persistantes (ex: quota fournisseur dépassé).
+// Sans ce garde-fou, BullMQ ré-émet une erreur applicative Redis sans délai dans sa
+// boucle interne de récupération de jobs, ce qui sature les logs et le réseau.
+const REDIS_ERROR_LOG_INTERVAL_MS = 30_000
+const REDIS_ERROR_PAUSE_THRESHOLD = 5
+const REDIS_ERROR_BASE_BACKOFF_MS = 2_000
+const REDIS_ERROR_MAX_BACKOFF_MS = 120_000
+const HEALTHY_RESET_AFTER_MS = 5 * 60_000
+
+let consecutiveRedisErrors = 0
+let backoffLevel = 0
+let lastErrorLoggedAt = 0
+let lastErrorAt = 0
+let resumeTimer: ReturnType<typeof setTimeout> | null = null
+
+function logStructured(event: string, fields: Record<string, unknown> = {}) {
+  console.error(JSON.stringify({
+    level: 'error',
+    event,
+    timestamp: new Date().toISOString(),
+    ...fields
+  }))
+}
+
+const worker = new Worker<JobData>(
   getCampaignQueueName(),
   async (job) => {
     const campaign = await prisma.campaign.findUnique({
@@ -142,10 +166,50 @@ new Worker<JobData>(
     ])
   },
   { connection }
-).on('failed', async (job) => {
+)
+
+worker.on('failed', async (job) => {
   if (!job?.data?.campaignId) return
   await prisma.campaign.update({
     where: { id: job.data.campaignId },
     data: { status: 'failed' }
   })
+})
+
+worker.on('completed', () => {
+  if (lastErrorAt && Date.now() - lastErrorAt > HEALTHY_RESET_AFTER_MS) {
+    backoffLevel = 0
+  }
+})
+
+worker.on('error', (err: Error) => {
+  consecutiveRedisErrors += 1
+  lastErrorAt = Date.now()
+
+  const now = Date.now()
+  if (now - lastErrorLoggedAt > REDIS_ERROR_LOG_INTERVAL_MS) {
+    lastErrorLoggedAt = now
+    logStructured('scrape_worker_redis_error', {
+      errorName: err?.name,
+      errorMessage: String(err?.message || err).slice(0, 300),
+      consecutiveErrors: consecutiveRedisErrors
+    })
+  }
+
+  if (consecutiveRedisErrors >= REDIS_ERROR_PAUSE_THRESHOLD && !worker.isPaused() && !resumeTimer) {
+    const backoff = Math.min(REDIS_ERROR_BASE_BACKOFF_MS * 2 ** backoffLevel, REDIS_ERROR_MAX_BACKOFF_MS)
+    const jitter = backoff * (0.2 + Math.random() * 0.3)
+    const delay = Math.round(backoff + jitter)
+    backoffLevel = Math.min(backoffLevel + 1, 6)
+
+    logStructured('scrape_worker_circuit_open', { delayMs: delay, backoffLevel })
+
+    worker.pause()
+    resumeTimer = setTimeout(() => {
+      resumeTimer = null
+      consecutiveRedisErrors = 0
+      worker.resume()
+      logStructured('scrape_worker_circuit_closed', {})
+    }, delay)
+  }
 })
