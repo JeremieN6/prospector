@@ -165,7 +165,17 @@ const worker = new Worker<JobData>(
       })
     ])
   },
-  { connection }
+  {
+    connection,
+    // Un job de scraping arrive rarement et reveille de toute facon la lecture
+    // bloquante instantanement des qu il est ajoute a la file: ces deux delais
+    // ne retardent que les relances a vide. Les valeurs par defaut de BullMQ
+    // (quelques secondes) faisaient tourner ce worker en boucle 24h/24 sans
+    // aucun job, consommant des commandes Upstash en continu -- cause
+    // probable du depassement de quota du 24/09 et de celui d aujourd hui.
+    drainDelay: 300,
+    stalledInterval: 300_000,
+  }
 )
 
 worker.on('failed', async (job) => {
