@@ -17,6 +17,12 @@
 
 ## Lecons
 
+### 2026-10-19 Test e2e prepare sur un chemin facture (Google Places) sans accord
+**Probleme** : Pour valider la telemetrie de couts, j'ai prepare puis tente de lancer un test qui executait le vrai `scrapeCampaign` (avec un faux Google). L'utilisateur a interrompu l'execution : il est en demarche pour etre rembourse et son compte ne doit absolument pas utiliser Google Places d'ici la.
+**Cause racine** : J'ai juge le test sur (Google stubbe) sans verifier si executer du code qui touche un service payant, meme simule, etait acceptable dans le contexte, et sans demander avant. Un stub reste un risque : une erreur de routage du faux fetch ferait partir un vrai appel facture.
+**Solution** : Aucun lancement n'a eu lieu. Ajout de l'interrupteur `GOOGLE_PLACES_DISABLED` (scraper + run.post.ts), validation par lecture du code et controle de syntaxe (esbuild) uniquement, regle enregistree dans la memoire.
+**Regle** : Ne jamais executer un chemin de code qui peut appeler une API tierce payante (Google Places, LLM, etc.) sans accord explicite et recent de l'utilisateur, meme avec un stub. Preferer la lecture de code, les tests unitaires de fonctions pures et le controle de syntaxe, et demander avant toute execution a risque de cout.
+
 ### 2026-09-25 Worker BullMQ sans listener 'error' -> log de 27 Go en 3 jours
 **Probleme** : `prospector-worker-error.log` a grossi de ~4-9 Go/jour jusqu'a 27 Go, saturant le disque du VPS (96%).
 **Cause racine** : Le `Worker` BullMQ dans `workers/scrape.worker.ts` n'avait pas de listener `.on('error', ...)`. Quand le quota Redis (Upstash) a ete depasse, BullMQ a emis une erreur applicative (non liee a la connexion) sans aucun delai dans sa boucle interne de recuperation de jobs (`retryIfFailed`, cf. `node_modules/bullmq/dist/cjs/classes/worker.js`), produisant un rejet de promesse non gere a chaque iteration, imprime en clair par Node sur stderr en boucle serree.
