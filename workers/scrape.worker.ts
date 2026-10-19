@@ -133,6 +133,7 @@ const worker = new Worker<JobData>(
       zones: campaign.zones,
       targetLeads: campaign.targetLeads,
       existingEmails: existing,
+      costContext: { userId: campaign.userId, campaignId: campaign.id },
       onProgress: async (current, target) => {
         const progress = Math.min(100, Math.round((current / target) * 100))
         await prisma.campaign.update({

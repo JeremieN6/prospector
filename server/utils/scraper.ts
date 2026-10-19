@@ -1,5 +1,20 @@
 import dns from 'node:dns/promises'
 import { setTimeout as delay } from 'node:timers/promises'
+import { trackCost } from './ops-cost'
+
+// Les champs demandes (websiteUri, nationalPhoneNumber) relevent du SKU "Text Search Enterprise" :
+// 35 $ / 1000 requetes (palier <= 100 000/mois), 1 000 gratuites/mois, agregees sur le compte de
+// facturation Google (tarif global au 2026-10-16). Si on retire ces champs, on passe en Pro (32 $).
+// Estimation : n'integre pas le quota gratuit, donc surestime tant qu'il n'est pas depasse.
+// Interrupteur d'urgence : GOOGLE_PLACES_DISABLED=true (ou 1/yes) bloque TOUT appel a Google Places.
+// Lu a chaque requete ; en production il faut redemarrer les process PM2 (--update-env) apres modification.
+export function isGooglePlacesDisabled() {
+  const value = (process.env.GOOGLE_PLACES_DISABLED || '').trim().toLowerCase()
+  return value === '1' || value === 'true' || value === 'yes'
+}
+
+const PLACES_FIELD_MASK ='places.id,places.name,places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,nextPageToken'
+const PLACES_TEXT_SEARCH_USD_PER_REQUEST = 0.035
 
 const BLOCKED_EMAILS = new Set([
   'help.fr@booksy.com',
@@ -64,6 +79,8 @@ type ScrapeInput = {
   targetLeads: number
   existingEmails?: Set<string>
   onProgress?: (current: number, target: number, city: string) => Promise<void> | void
+  // Contexte joint a chaque cout envoye a Sassify Ops (la cle Google est celle de l'utilisateur)
+  costContext?: { userId?: string; campaignId?: string }
 }
 
 export function parseSearchVariantsText(searchVariantsText: string | null | undefined) {
@@ -194,7 +211,12 @@ async function extractEmail(website: string) {
   return null
 }
 
-async function searchPlaces(googlePlacesKey: string, city: string, variant: SearchVariant) {
+async function searchPlaces(
+  googlePlacesKey: string,
+  city: string,
+  variant: SearchVariant,
+  costContext?: ScrapeInput['costContext']
+) {
   const results: Array<any> = []
   let pageToken: string | null = null
 
@@ -213,12 +235,16 @@ async function searchPlaces(googlePlacesKey: string, city: string, variant: Sear
       payload.includedType = variant.includedType.trim()
     }
 
+    if (isGooglePlacesDisabled()) {
+      throw new Error('Google Places desactive (GOOGLE_PLACES_DISABLED) : aucun appel effectue')
+    }
+
     const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googlePlacesKey,
-        'X-Goog-FieldMask': 'places.id,places.name,places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,nextPageToken'
+        'X-Goog-FieldMask': PLACES_FIELD_MASK
       },
       body: JSON.stringify(payload)
     })
@@ -226,6 +252,18 @@ async function searchPlaces(googlePlacesKey: string, city: string, variant: Sear
     if (!response.ok) {
       throw new Error(`Google Places HTTP ${response.status} sur ${city}`)
     }
+
+    // Une requete reussie = un evenement facturable (chaque page de pagination est comptee).
+    void trackCost({
+      project: 'prospector',
+      provider: 'google-places',
+      endpoint: 'places:searchText',
+      units: 1,
+      unitLabel: 'requests',
+      amount: PLACES_TEXT_SEARCH_USD_PER_REQUEST,
+      currency: 'USD',
+      meta: { city, paged: Boolean(pageToken), ...costContext }
+    })
 
     const data = await response.json() as { places?: any[]; nextPageToken?: string }
     if (Array.isArray(data.places)) {
@@ -242,7 +280,7 @@ async function searchPlaces(googlePlacesKey: string, city: string, variant: Sear
 }
 
 export async function scrapeCampaign(input: ScrapeInput) {
-  const { googlePlacesKey, zones, targetLeads, onProgress } = input
+  const { googlePlacesKey, zones, targetLeads, onProgress, costContext } = input
   const existingEmails = input.existingEmails || new Set<string>()
   const searchVariants = resolveSearchVariants(input)
 
@@ -255,7 +293,7 @@ export async function scrapeCampaign(input: ScrapeInput) {
     for (const variant of searchVariants) {
       if (leadsByEmail.size >= targetLeads) break
 
-      const places = await searchPlaces(googlePlacesKey, city, variant)
+      const places = await searchPlaces(googlePlacesKey, city, variant, costContext)
       for (const place of places) {
         if (leadsByEmail.size >= targetLeads) break
         if (!place.id || seenPlaceIds.has(place.id)) continue

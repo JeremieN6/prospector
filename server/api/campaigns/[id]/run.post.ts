@@ -2,7 +2,7 @@ import { requireUser } from '../../../utils/auth'
 import { prisma } from '../../../utils/prisma'
 import { getCampaignQueueIfConfigured } from '../../../utils/queue'
 import { decryptText } from '../../../utils/crypto'
-import { parseSearchVariantsText, scrapeCampaign } from '../../../utils/scraper'
+import { isGooglePlacesDisabled, parseSearchVariantsText, scrapeCampaign } from '../../../utils/scraper'
 
 async function runCampaignInline(campaignId: string, userId: string) {
   const campaign = await prisma.campaign.findFirst({
@@ -39,6 +39,7 @@ async function runCampaignInline(campaignId: string, userId: string) {
       zones: campaign.zones,
       targetLeads: campaign.targetLeads,
       existingEmails,
+      costContext: { userId: campaign.userId, campaignId: campaign.id },
       onProgress: async (current, target) => {
         const progress = Math.min(100, Math.round((current / target) * 100))
         await prisma.campaign.update({
@@ -76,6 +77,10 @@ async function runCampaignInline(campaignId: string, userId: string) {
 }
 
 export default defineEventHandler(async (event) => {
+  if (isGooglePlacesDisabled()) {
+    throw createError({ statusCode: 503, statusMessage: 'La generation de leads est temporairement desactivee.' })
+  }
+
   const user = await requireUser(event)
   const id = getRouterParam(event, 'id')
 
