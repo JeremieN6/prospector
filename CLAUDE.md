@@ -16,9 +16,9 @@
 ---
 
 ## Etat Actuel du Projet
-**Phase** : Demarrage
-**Derniere session** : 2026-10-19
-**Progression globale** : 0%
+**Phase** : En production, stable (aucun developpement produit en cours, Google Places gele)
+**Derniere session** : 2026-11-06
+**Progression globale** : non mesuree (MVP interne deploye)
 
 ### Ce qui est fait :
 - [x] Configuration MCP memoire
@@ -27,22 +27,30 @@
 - [x] Rotation PM2 configuree (pm2-logrotate: 50M max, retain 14, compression)
 - [x] Interrupteur d'urgence `GOOGLE_PLACES_DISABLED` (commit 2821e4c) : bloque campagnes + appels Google (voir Decisions Prises)
 - [x] Telemetrie de couts vers le dashboard `ops` (projet separe, `..\ops`) : `server/utils/ops-cost.ts` + `trackCost` apres chaque requete Google Places reussie (ecrit, JAMAIS execute)
+- [x] `GOOGLE_PLACES_DISABLED=true` pose dans `/srv/saas/prospector/.env.local` (VPS) le 2026-10-19 ; processus redemarres le 2026-10-23, apres la modification. Probablement actif (charge via `server/utils/prisma.ts` et le worker) mais non teste : lancer une campagne est interdit.
+- [x] Stabilisation post-incident verifiee le 2026-11-04 : prod = `740ace9` = origin, 0 redemarrage, disque 47 %, log d'erreurs du worker a 0 octet depuis le 2026-11-02 (le quota Upstash a ete reinitialise le 1er novembre ; en octobre le circuit breaker a tourne ~533 cycles/jour, ~275 Ko/jour)
+- [x] Dashboard `pilotage` (projet `ops`) en ligne sur le VPS (PM2 `pilotage`)
+- [x] Rotation des secrets compromis le 2026-11-06 : mot de passe du role Neon `neondb_owner` (projet `prospector`, branche `production`) et identifiants de la base Upstash `prospector` (equipe Personal). `.env.local` local et VPS mis a jour (droits 600), `prospector` + `prospector-worker` recharges, verifie (PING Redis, login 401 = lecture Neon OK, 0 nouvelle erreur de worker).
+- [x] `ecosystem.config.cjs` du VPS reecrit sans secret ni erreur de syntaxe (2 apps, `.env.local` lu au demarrage par le code)
+- [x] Consommation Redis mesuree le 2026-11-06 (Upstash, base `prospector`) : ~4 270 requetes/jour, stable depuis le 1er novembre, 23 614 sur le mois (limite 500 000/mois) ; 2 connexions, 2 cles. Bruit de fond BullMQ (BZPOPMIN, EVALSHA...). Projection ~130 000/mois, soit ~26 % du quota. Aucun signe d'une base partagee avec `flysmart-worker` (voir Blocages).
 
 ### Prochaines etapes :
-- [ ] **URGENT** : definir `GOOGLE_PLACES_DISABLED=true` dans le `.env`/`.env.local` du VPS (`/srv/saas/prospector`) puis `pm2 reload prospector prospector-worker --update-env` (le code est deploye mais l'interrupteur est eteint par defaut). Verifier en lancant une campagne : elle doit etre refusee (503) sans appel Google.
-- [ ] Deployer `ops` (ops.sassify.fr) puis renseigner `OPS_URL` et `OPS_INGEST_KEY` dans le `.env` de prospector pour activer l'envoi des couts
+- [ ] Renseigner `OPS_URL` et `OPS_INGEST_KEY` dans le `.env.local` du VPS pour activer l'envoi des couts (absentes au 2026-11-04 ; inutile tant que Google Places est desactive, la telemetrie ne part qu'apres un appel reel)
+- [ ] Levee de l'interdit Google Places uniquement sur annonce explicite du remboursement : retirer `GOOGLE_PLACES_DISABLED` puis `pm2 reload prospector prospector-worker --update-env`
 - [ ] Upstash : collecteur cote `ops` via l'API Upstash (pas d'instrumentation possible dans l'app, BullMQ envoie les commandes en interne)
-- [ ] Verifier les logs PM2 apres le prochain deploiement
-- [ ] Surveiller CPU/disque/trafic du VPS sur les prochaines 24-48h pour confirmer la stabilisation post-fix
-- [ ] Envisager de retirer les secrets en clair de `ecosystem.config.cjs` sur le VPS (fichier non versionne, syntaxe JS invalide `KEY=valeur` au lieu de `KEY: 'valeur'`) et de reference un `.env` a la place
-
+- [ ] Mineur : `pm2-logrotate` a `compress true` mais les fichiers tournes restent en `.log` (sans enjeu a ~275 Ko/jour)
+- [ ] Mineur : `server/api/auth/login.post.ts` laisse remonter une erreur Zod non geree en 500 (mot de passe < 8 caracteres) au lieu d'un 400 : a transformer en erreur de validation propre
+- [ ] Surveiller le quota Upstash a la fin du mois (23 614 requetes au 06/11, ~4 270/jour)
 ---
 
 ## Blocages et Points d Attention
 - **INTERDIT (ordre du 2026-10-19)** : ne lancer AUCUN scraping de leads ni appel reel a Google Places (campagne, worker, script de test, e2e, meme avec un faux Google) tant que l'utilisateur n'a pas dit explicitement qu'il est rembourse (demarches administratives en cours). Verifier par lecture du code, pas par execution.
 - Chaque utilisateur de prospector enregistre sa propre cle Google Places (`credentials.googlePlacesKey`) : le cout Google n'est pas forcement celui du proprietaire. Les evenements de cout envoyes a `ops` portent `userId`/`campaignId` en meta pour pouvoir separer proprietaire et clients.
 - Le VPS de prod heberge plusieurs apps sous PM2 (dont Flysmart) qui semblent avoir subi le meme type d'incident Redis au meme moment (25/09) -- cause probablement partagee au niveau du fournisseur Redis (Upstash), a surveiller si ca se reproduit.
-- `ecosystem.config.cjs` sur le VPS (`/srv/saas/prospector/`) est untracked et contient des identifiants Redis/DB en clair avec une syntaxe JS invalide (`KEY=valeur,` au lieu de `KEY: 'valeur',`). Il n'est pas utilise par `pm2 reload` (PM2 garde sa propre config en memoire) mais merite d'etre corrige/secretise si un jour on repart d'un `pm2 start ecosystem.config.cjs` propre.
+- `ecosystem.config.cjs` sur le VPS (`/srv/saas/prospector/`) est untracked, desormais propre (sans secret, syntaxe valide depuis le 2026-11-06). Il n'est pas utilise par `pm2 reload` (PM2 garde sa propre config en memoire) ; `DATABASE_URL` et `REDIS_URL` ne vivent que dans `.env.local`.
+- Upstash : le compte a 3 equipes (`sassify`, `Personal`, `flysmart`). La base Redis de prospector est dans `Personal` (hote `dashing-rhino-113733`) ; le connecteur Upstash ne voit que l'equipe qui lui est autorisee. Sur le VPS, aucune autre app ne reference l'hote Redis ni l'endpoint Neon de prospector.
+- Les secrets passent par les resultats d'outils (connecteurs Neon/Upstash) : ne jamais les recopier dans le chat, ni dans un fichier versionne.
+- Les variables d'`.env.local` ne sont PAS dans l'environnement PM2 (`pm2 jlist` ne les montre pas) : elles sont lues par le code au demarrage. Pour verifier une variable, regarder le fichier et la date de demarrage du process, pas `pm2 env`.
 
 ---
 
@@ -66,6 +74,8 @@
 - 2026-08-04 : Synchronisation du moteur de scraping serveur avec la nouvelle version du script source, en reprenant les filtres de noms bloqués et le payload Google Places mis à jour.
 - 2026-09-25 : Diagnostic en direct sur le VPS prod (croissance anormale de `prospector-worker-error.log`, ~27 Go). Cause confirmée : dépassement du quota de requêtes Redis Upstash le 24/09, combiné à l'absence d'un listener `'error'` sur le Worker BullMQ (`workers/scrape.worker.ts`), qui laissait la boucle interne de BullMQ ré-émettre l'erreur sans délai à chaque itération. Correctif déployé (circuit breaker + logs structurés rate-limited), `pm2-logrotate` installé sur le VPS, fichier de log obsolète à purger (troncature bloquée par le garde-fou de l'outil, à faire manuellement ou avec confirmation explicite).
 - 2026-10-19 : Création du projet séparé `ops` (`..\ops`, Nuxt 3 + Prisma + Neon, dashboard de coûts par projet/API + coûts fixes, base Neon `ops` créée, test de bout en bout OK sur données fictives nettoyées ensuite). Dans prospector : ajout de la télémétrie de coûts Google Places (`server/utils/ops-cost.ts`, `scraper.ts`, worker et `run.post.ts` passent `costContext`) et de l'interrupteur `GOOGLE_PLACES_DISABLED` suite à l'ordre de ne plus appeler Google Places jusqu'au remboursement. Tout le travail a été validé par lecture + contrôle de syntaxe uniquement (aucun scraping lancé). Le commit 2821e4c est poussé sur `main` : le workflow de déploiement l'a probablement mis en production, interrupteur encore éteint tant que la variable n'est pas définie sur le VPS.
+- 2026-11-04 : Point d'etat en lecture seule (VPS + depot), aucun code modifie. L'interrupteur est en fait pose sur le VPS depuis le 19/10 (voir "Ce qui est fait"), le quota Upstash s'est reinitialise le 1er novembre et le worker est revenu au calme. Mise a jour de ce fichier et de `tasks/todo.md`.
+- 2026-11-06 : Rotation des secrets Neon et Upstash (voir "Ce qui est fait"), nettoyage de `ecosystem.config.cjs` sur le VPS, suppression des sauvegardes contenant les anciens secrets, mesure de la consommation Redis. Aucun code modifie dans le depot, aucun scraping ni appel Google Places. Le projet `ops` a aussi ete refondu cette meme session (voir son propre CLAUDE.md).
 
 ---
 
