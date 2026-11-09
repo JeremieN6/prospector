@@ -41,7 +41,7 @@
 - [ ] Levee de l'interdit Google Places uniquement sur annonce explicite du remboursement : retirer `GOOGLE_PLACES_DISABLED` puis `pm2 reload prospector prospector-worker --update-env`
 - [ ] Upstash : collecteur cote `ops` via l'API Upstash (pas d'instrumentation possible dans l'app, BullMQ envoie les commandes en interne)
 - [ ] Mineur : `pm2-logrotate` a `compress true` mais les fichiers tournes restent en `.log` (sans enjeu a ~275 Ko/jour)
-- [x] Mineur : `server/api/auth/login.post.ts` renvoie maintenant 400 « Requete invalide » (`safeParse`, message generique) au lieu d'une 500 sur une entree invalide (2026-11-09, teste en isole avec de faux modules : 400 / 401 / ok ; NON deploye tant que non pousse). Le meme motif `bodySchema.parse(...)` reste dans `campaigns/index.post.ts`, `credentials/index.post.ts`, `auth/register.post.ts`, `campaigns/[id]/leads/[leadId].patch.ts` (500 sur entree invalide) : a traiter de la meme facon si souhaite
+- [x] Mineur : `server/api/auth/login.post.ts` renvoie maintenant 400 « Requete invalide » (`safeParse`, message generique) au lieu d'une 500 sur une entree invalide (2026-11-09, teste en isole avec de faux modules : 400 / 401 / ok ; NON deploye tant que non pousse). Meme correction appliquee le 2026-11-09 aux 4 autres routes (`campaigns/index.post.ts`, `credentials/index.post.ts`, `auth/register.post.ts`, `campaigns/[id]/leads/[leadId].patch.ts`) : syntaxe verifiee, a pousser pour deployer ; plus aucun `bodySchema.parse(await readBody(...))` dans `server/api`
 - [ ] Surveiller le quota Upstash a la fin du mois (23 614 requetes au 06/11, ~4 270/jour)
 ---
 

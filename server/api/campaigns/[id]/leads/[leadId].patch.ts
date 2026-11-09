@@ -21,7 +21,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Campagne introuvable' })
   }
 
-  const body = bodySchema.parse(await readBody(event))
+  // Entree invalide = erreur client (400), pas une 500 non geree.
+  const parsed = bodySchema.safeParse(await readBody(event))
+  if (!parsed.success) {
+    throw createError({ statusCode: 400, statusMessage: 'Requete invalide' })
+  }
+  const body = parsed.data
   const targetLead = await prisma.lead.findFirst({
     where: {
       id: leadId,

@@ -13,7 +13,12 @@ const bodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
-  const body = bodySchema.parse(await readBody(event))
+  // Entree invalide = erreur client (400), pas une 500 non geree.
+  const parsed = bodySchema.safeParse(await readBody(event))
+  if (!parsed.success) {
+    throw createError({ statusCode: 400, statusMessage: 'Requete invalide' })
+  }
+  const body = parsed.data
 
   const campaign = await prisma.campaign.create({
     data: {
