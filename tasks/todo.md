@@ -12,7 +12,7 @@
 
 ## Backlog
 - [ ] Collecteur Upstash cote `ops` via l'API Upstash
-- [ ] Mineur : `login.post.ts` renvoie un 500 sur une erreur de validation Zod (mot de passe < 8 caracteres) au lieu d'un 400
+- [x] Mineur : `login.post.ts` renvoie desormais 400 (`safeParse`) au lieu d'un 500 sur une erreur de validation Zod (2026-11-09, a pousser) ; meme motif restant dans 4 autres routes (campaigns, credentials, register, leads patch)
 - [ ] Mineur : compression de `pm2-logrotate` inactive (fichiers tournes en `.log`), sans enjeu a ce volume
 
 ## Fait
